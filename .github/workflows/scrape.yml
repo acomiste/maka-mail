@@ -1,0 +1,37 @@
+name: Executer le Scraper de Medecins
+
+on:
+  workflow_dispatch: # Permet de cliquer sur un bouton pour lancer manuellement sur GitHub
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Récupérer le code du dépôt
+      uses: actions/checkout@v4
+
+    - name: Configurer Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Installer Google Chrome
+      uses: browser-actions/setup-chrome@v3
+      with:
+        chrome-version: latest
+
+    - name: Installer les bibliothèques Python
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Lancer la recherche
+      run: python script.py
+
+    - name: Sauvegarder les résultats
+      if: always() # Sauvegarde le fichier même en cas de coupure ou d'erreur
+      uses: actions/upload-artifact@v4
+      with:
+        name: resultats-emails
+        path: emails_visuels.csv
