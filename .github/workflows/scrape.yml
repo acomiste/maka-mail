@@ -1,7 +1,7 @@
 name: Executer le Scraper de Medecins
 
 on:
-  workflow_dispatch: # Permet de cliquer sur un bouton pour lancer manuellement sur GitHub
+  workflow_dispatch: # Permet de lancer manuellement depuis l'interface GitHub
 
 jobs:
   run-scraper:
@@ -30,7 +30,7 @@ jobs:
       run: python script.py
 
     - name: Sauvegarder les résultats
-      if: always() # Sauvegarde le fichier même en cas de coupure ou d'erreur
+      if: always() # Sauvegarde le CSV même s'il y a une coupure internet en cours de route
       uses: actions/upload-artifact@v4
       with:
         name: resultats-emails

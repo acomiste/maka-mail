@@ -31,36 +31,8 @@ def initialiser_navigateur():
     driver = webdriver.Chrome(options=options)
     return driver
 
-def gerer_si_captcha(driver):
-    """Vérifie textuellement si un Captcha bloque la navigation dans le cloud."""
-    elements_captcha = [
-        "//iframe[contains(@src, 'recaptcha')]",
-        "//div[contains(@id, 'captcha')]",
-        "//iframe[contains(@src, 'cloudflare')]",
-        "//form[@id='captcha-form']",
-        "//*[contains(text(), 'not a robot') or contains(text(), 'pas un robot')]"
-    ]
-    
-    captcha_detecte = False
-    for xpath in elements_captcha:
-        try:
-            if driver.find_elements(By.XPATH, xpath):
-                captcha_detecte = True
-                break
-        except Exception:
-            continue
-            
-    if "://google.com" in driver.current_url.lower():
-        captcha_detecte = True
-
-    if captcha_detecte:
-        print("⚠️ [BLOCAGE DETECTÉ] Un Captcha ou un blocage Google est survenu sur ce thread.")
-        return True
-        
-    return False
-
-def chercher_urls_pdf_via_google(driver, nom, prenom):
-    """Effectue la recherche sur Google en tâche de fond."""
+def chercher_urls_pdf_via_duckduckgo(driver, nom, prenom):
+    """Effectue la recherche sur DuckDuckGo et extrait les liens PDF en arrière-plan."""
     nom_q = nom.strip().replace('"', '')
     prenom_q = prenom.strip().replace('"', '')
     
@@ -68,33 +40,26 @@ def chercher_urls_pdf_via_google(driver, nom, prenom):
     liens_pdf = []
     
     try:
-        driver.get("https://google.com")
+        driver.get("https://duckduckgo.com")
         time.sleep(2)
         
-        gerer_si_captcha(driver)
-        
         try:
-            bouton_cookies = driver.find_element(By.XPATH, '//button[contains(., "Tout accepter") or contains(., "Accept all")]')
-            bouton_cookies.click()
-            time.sleep(1)
-        except Exception:
-            pass
+            barre_recherche = driver.find_element(By.NAME, "q")
+        except:
+            barre_recherche = driver.find_element(By.ID, "search_form_input")
             
-        barre_recherche = driver.find_element(By.NAME, "q")
         barre_recherche.send_keys(requete)
         barre_recherche.send_keys(Keys.ENTER)
-        time.sleep(3)
-        
-        gerer_si_captcha(driver)
+        time.sleep(3) 
         
         elements_liens = driver.find_elements(By.XPATH, '//a[@href]')
         for elem in elements_liens:
             href = elem.get_attribute("href")
-            if href and href.lower().endswith('.pdf'):
+            if href and href.lower().endswith('.pdf') and "duckduckgo.com" not in href.lower():
                 liens_pdf.append(href)
                 
     except Exception as e:
-        print(f"    ⚠️ Problème d'interaction pour {prenom} {nom}")
+        print(f"    ⚠️ Problème de navigation DuckDuckGo pour {prenom} {nom}")
         
     return list(set(liens_pdf))[:2]
 
@@ -141,7 +106,7 @@ def traiter_un_medecin(donnees_medecin, fichier_sortie):
     trouve_au_moins_un_mail = False
     
     try:
-        urls_pdf = chercher_urls_pdf_via_google(driver, nom, prenom)
+        urls_pdf = chercher_urls_pdf_via_duckduckgo(driver, nom, prenom)
         
         if urls_pdf:
             for url_pdf in urls_pdf:
@@ -159,9 +124,9 @@ def traiter_un_medecin(donnees_medecin, fichier_sortie):
                             with open(fichier_sortie, mode='a', encoding='utf-8', newline='') as f_out:
                                 writer = csv.writer(f_out, delimiter=',', quoting=csv.QUOTE_MINIMAL)
                                 writer.writerow([nom, prenom, emails_fusionnes, url_pdf])
-                                f_out.flush() # Force la mise à jour immédiate sur le disque
+                                f_out.flush()
         
-        # S'il n'y a aucun e-mail trouvé (pas de PDF ou PDF vide)
+        # Si aucun e-mail n'a été trouvé (pas de PDF ou PDF sans e-mail)
         if not trouve_au_moins_un_mail:
             print(f"    ❌ Aucun mail trouvé pour Dr {prenom} {nom}.")
             with verrou_fichier:
@@ -174,7 +139,7 @@ def traiter_un_medecin(donnees_medecin, fichier_sortie):
 
 if __name__ == "__main__":
     FICHIER_CSV = "villes.csv"
-    FICHIER_SORTIE = "emails_visuels.csv" # Extension passée en .csv
+    FICHIER_SORTIE = "emails_visuels.csv"
     NB_THREADS_SIMULTANES = 4 
 
     if not os.path.exists(FICHIER_CSV):
@@ -184,7 +149,7 @@ if __name__ == "__main__":
     with open(FICHIER_CSV, mode='r', encoding='utf-8', errors='ignore') as f:
         lignes_brutes = [l.strip() for l in f.read().splitlines() if l.strip()]
 
-    print(f"🚀 Initialisation. {len(lignes_brutes) - 1} lignes prêtes à être réparties sur {NB_THREADS_SIMULTANES} threads...")
+    print(f"🚀 Initialisation. {len(lignes_brutes) - 1} lignes prêtes à être réparties sur DuckDuckGo...")
 
     # Création de l'en-tête CSV s'il n'existe pas encore
     if not os.path.exists(FICHIER_SORTIE):
@@ -217,7 +182,7 @@ if __name__ == "__main__":
 
         liste_medecins_A_traiter.append((idx, prenom, nom))
 
-    print(f"🔥 Lancement du traitement de masse parallèle au format CSV sur GitHub...")
+    print(f"🔥 Lancement du traitement de masse parallèle au format CSV sur GitHub via DuckDuckGo...")
     
     with ThreadPoolExecutor(max_workers=NB_THREADS_SIMULTANES) as executor:
         executor.map(lambda med: traiter_un_medecin(med, FICHIER_SORTIE), liste_medecins_A_traiter)
