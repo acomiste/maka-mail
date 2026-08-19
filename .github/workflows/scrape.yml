@@ -16,8 +16,9 @@ jobs:
       with:
         python-version: '3.11'
 
+    # CORRECTION ICI : Passage de v3 à v2 pour l'action Chrome
     - name: Installer Google Chrome
-      uses: browser-actions/setup-chrome@v3
+      uses: browser-actions/setup-chrome@v2
       with:
         chrome-version: latest
 
